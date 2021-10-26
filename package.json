@@ -1,0 +1,101 @@
+{
+	"name": "custom-data-scan",
+	"displayName": "VSCode Custom Data Loader",
+	"description": "Automatic discovery of `custom-elements.json` files in your dependencies",
+	"version": "0.0.1",
+	"publisher": "Jan-Kretschmer",
+	"repository": {
+		"type": "git",
+		"url": "todo"
+	},
+	"bugs": {
+		"url": "todo."
+	},
+	"engines": {
+		"vscode": "^1.32.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onFileSystem:custom-data",
+		"onCommand:cds.workspaceInit"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"html": {
+			"customData": [
+				"custom-data:/data.json"
+			]
+		},
+		"commands": [
+			{
+				"command": "cds.workspaceInit",
+				"title": "Setup Workspace",
+				"category": "cds"
+			}
+		],
+		"configuration": [
+			{
+				"title": "VSCode custom data scanner",
+				"properties": {
+					"custom-data-scan.package-json.enabled": {
+						"type": "boolean",
+						"default": true,
+						"description": "Enable Globbing to discover package.json files with `\"custom-elements\"` fields."
+					},
+					"custom-data-scan.package-json.include": {
+						"type": "string",
+						"default": "**/package.json",
+						"description": "Glob pattern to discover package.json files with `\"custom-elements\"` fields."
+					},
+					"custom-data-scan.package-json.exclude": {
+						"type": "string",
+						"default": "",
+						"description": "Glob pattern to exclude when looking for package.json files with `\"custom-elements\"` fields."
+					},
+					"custom-data-scan.custom-elements.enabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable globbing to discover custom-elements.json files."
+					},
+					"custom-data-scan.custom-elements.include": {
+						"type": "string",
+						"default": "**/custom-elements.json",
+						"description": "Glob pattern to discover custom-elements.json files."
+					},
+					"custom-data-scan.custom-elements.exclude": {
+						"type": "string",
+						"default": "",
+						"description": "Glob pattern to exclude when looking for custom-elements.json files."
+					}
+				}
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc",
+		"lint": "eslint . --ext .ts,.tsx",
+		"watch": "tsc --watch",
+		"package": "npx vsce package"
+	},
+	"dependencies": {
+		"jsonschema": "^1.4.0",
+		"lodash.mergewith": "^4.6.2"
+	},
+	"customElements": "custom-elements.json",
+	"devDependencies": {
+		"@spectrum-web-components/button": "^0.14.9",
+		"@types/lodash.mergewith": "^4.6.6",
+		"@types/vscode": "^1.32.0",
+		"@typescript-eslint/eslint-plugin": "^4.16.0",
+		"@typescript-eslint/parser": "^4.16.0",
+		"custom-elements-manifest": "^1.0.0",
+		"eslint": "^7.21.0",
+		"ts-loader": "^9.2.5",
+		"typescript": "^4.2.2",
+		"webpack": "^5.52.1",
+		"webpack-cli": "^4.8.0"
+	}
+}

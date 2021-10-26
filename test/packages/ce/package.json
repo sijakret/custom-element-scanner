@@ -1,0 +1,5 @@
+{
+    "name": "@ce/ce",
+    "version": "0.0.1",
+    "customElements": "elements.json"
+}
