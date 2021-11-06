@@ -1,5 +1,6 @@
-import { Uri, EventEmitter, workspace, FileSystemWatcher , extensions} from "vscode";
+import { Uri, EventEmitter, workspace, FileSystemWatcher} from "vscode";
 import { collectCustomElementJsons } from "./collect-packages";
+import { configKey } from './config';
 
 export interface IScanner {
     onDidDataChange: EventEmitter<Uri[]>
@@ -26,9 +27,9 @@ class Scanner implements IScanner {
     get config() {
         const configuration = workspace.getConfiguration();
         return  {
-            enabled: configuration.get(`${this._rootConfigKey}.enabled`),
-            include: configuration.get(`${this._rootConfigKey}.include`),
-            exclude: configuration.get(`${this._rootConfigKey}.exclude`)
+            enabled: configuration.get(`${this._rootConfigKey}.enabled`) as string,
+            include: configuration.get(`${this._rootConfigKey}.include`) as string,
+            exclude: configuration.get(`${this._rootConfigKey}.exclude`) as string
         } 
     }
 
@@ -59,8 +60,6 @@ class Scanner implements IScanner {
     }
 
     async update() {
-        // this might be a bit excessive
-        // this.uris = await workspace.findFiles(`${this.config.include}`, `${this.config.exclude}`)
         this.onDidDataChange.fire(this.uris);
     }
 
@@ -72,6 +71,8 @@ class Scanner implements IScanner {
 
 /**
  * creates composed scanner
+ * based on configuration it will scan for package.json files and extract
+ * the corresponding customElements fields AND/OR for customElements.json files
  */
 export function createScanner(): IScanner {
     const scanner = {
@@ -80,15 +81,20 @@ export function createScanner(): IScanner {
     // composed scanner that will detecte element.json files
     // either directly or via package.json files
     {
-        const pkgScanner = new Scanner('custom-data-scan.package-json');
-        const elementsScanner = new Scanner('custom-data-scan.custom-elements');
+        const pkgScanner = new Scanner([configKey, 'package-json'].join('.'));
+        const elementsScanner = new Scanner([configKey, 'custom-elements'].join('.'));
 
         pkgScanner.onDidDataChange.event(async (uris:Uri[]) => {
+            // at this point we have all package.json files that were
+            // discovered by the vscode apis via findFiles/watch
             // map package.json files to custom-elements fields
-            const paths = await collectCustomElementJsons(uris);
+            const paths = await collectCustomElementJsons(uris, {
+                exclude: pkgScanner.config.exclude
+            });
             scanner.onDidDataChange.fire(paths.map(p => Uri.parse(p)));
         })
         elementsScanner.onDidDataChange.event((uris) => scanner.onDidDataChange.fire(uris));
     }
     return scanner;
 }
+

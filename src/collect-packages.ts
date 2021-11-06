@@ -1,5 +1,12 @@
-import { Uri, workspace } from 'vscode';
+import { GlobPattern, Uri, workspace } from 'vscode';
 import { dirname, join } from 'path';
+import { limited } from './config'
+
+
+export interface CollectOptions {
+    levelsToDescend?: number,
+    exclude?: GlobPattern
+}
 
 /**
  * takes package.json Uri and returs a list
@@ -7,7 +14,7 @@ import { dirname, join } from 'path';
  * @param uri 
  */
 export function collectDeps(uri:string, levelsToDescend = 1): Thenable<string[]> {
-    return workspace.openTextDocument(uri).then(async (doc) => {
+    return limited(() => workspace.openTextDocument(uri).then(async (doc) => {
         try {
             const pkg = JSON.parse(doc.getText());
             let deps = Object.keys({
@@ -26,27 +33,38 @@ export function collectDeps(uri:string, levelsToDescend = 1): Thenable<string[]>
         } catch(e) {
             return []
         }
-    });
+    }));
 }
 
-
 /**
+ * 1) takes a list of package.json files and recursively traverses them
+ * via -> node_modules/[modules]/package.json -> etc..
  * recursively tracks all custom-elements fields pointed to by
  * package.json files.
+ * 2) the discovered package.json files are loaded and parsed and their customElements
+ * field is extracted to produce a final list of paths to customData.json files
  */
-export async function collectCustomElementJsons(uris:Uri[], levelsToDescend = 1): Promise<string[]> {
+export async function collectCustomElementJsons(uris:Uri[], options: CollectOptions = {
+    levelsToDescend: 1,
+    exclude: ''
+}): Promise<string[]> {
+    const {
+        levelsToDescend = 1,
+        exclude = ''
+    } = options;
     let pkgs = await Promise.all(uris.map(uri => collectDeps(uri.fsPath, levelsToDescend)));
 
     // make list of package.jsons unique
     pkgs = pkgs.filter((v, i, a) => a.indexOf(v) === i)
 
-    const fields = await Promise.all(pkgs.flat().map(async (pkg) => {
+    const pkgList = pkgs.flat();
+    const fields = await Promise.all(pkgList.map(async (pkg) => limited(async () => {
         try {
             const file = await workspace.openTextDocument(Uri.parse(pkg));
             return join( dirname(pkg), JSON.parse(file.getText()).customElements);
         } catch(e) {
             return '';
         }
-    }));
+    })));
     return fields.filter(f => !!f);
 }
