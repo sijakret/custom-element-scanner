@@ -8,18 +8,17 @@
 	},
 	"typescript.tsdk": "./node_modules/typescript/lib", // we want to use the TS server from our node_modules folder to control its version
 	"typescript.tsc.autoDetect": "off",
+	"customData.mode": "auto",
 	"html.customData": [
 		"custom-elements.json",
-		"test/workspace/node_modules/@ce/ce/elements.json",
-		"test/workspace/node_modules/@spectrum-web-components/button/custom-elements.json",
 		"test/packages/ce/elements.json",
+		"test/workspace/node_modules/@spectrum-web-components/button/custom-elements.json",
 		"test/workspace/node_modules/@spectrum-web-components/base/custom-elements.json",
 		"test/workspace/node_modules/@spectrum-web-components/icon/custom-elements.json",
 		"test/workspace/node_modules/@spectrum-web-components/iconset/custom-elements.json",
-		"test/workspace/node_modules/@spectrum-web-components/icons-ui/custom-elements.json",
-		"test/workspace/node_modules/@spectrum-web-components/shared/custom-elements.json",
 		"test/workspace/node_modules/@spectrum-web-components/button/custom-elements.json",
+		"test/workspace/node_modules/@spectrum-web-components/shared/custom-elements.json",
+		"test/workspace/node_modules/@spectrum-web-components/icons-ui/custom-elements.json",
 		"test/workspace/node_modules/@ce/ce/elements.json"
-	],
-	"customData.mode": "auto" // Turn off tsc task auto detection since we have the necessary task as npm scripts
+	] // Turn off tsc task auto detection since we have the necessary task as npm scripts
 }

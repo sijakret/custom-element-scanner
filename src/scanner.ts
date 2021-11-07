@@ -1,6 +1,7 @@
 import { Uri, EventEmitter, workspace, FileSystemWatcher, Disposable} from "vscode";
 import { collectCustomElementJsons } from "./collect-packages";
 import { configKey } from './config';
+import { relative } from 'path';
 
 export interface ElementsWithContext {
     uri: Uri,
@@ -109,7 +110,9 @@ export function createScanner(): IScanner {
     const elementsScanner = new Scanner([configKey, 'custom-elements'].join('.'));
 
     let paths:ElementsWithContext[];
-    const update = () => scanner.onDidDataChange.fire(paths);
+    const update = () => {
+        scanner.onDidDataChange.fire(paths);
+    }
     pkgScanner.onDidDataChange.event(async (elements:ElementsWithContext[]) => {
         // dispose old stuff
         dispose();
@@ -121,7 +124,9 @@ export function createScanner(): IScanner {
         });
         // watch all the custom elements files explicitly
         paths.map(({uri}) => {
-            const watcher = workspace.createFileSystemWatcher(uri.toString());
+            const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
+            const wsPath = relative(ws || '', uri.path)
+            const watcher = workspace.createFileSystemWatcher(uri.path);
             watching.push(watcher.onDidChange(() => update()));
             watching.push(watcher.onDidDelete((e:Uri) => update()));
             watching.push(watcher);

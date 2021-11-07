@@ -1,16 +1,16 @@
 {
 	"name": "custom-data-scan",
-	"displayName": "VSCode Custom Data Loader",
-	"description": "Automatic discovery of `custom-elements.json` files in your dependencies",
+	"displayName": "Custom Data Scanner",
+	"description": "Scans for custom elements files in your project and makes them available to hmlt-language-service",
 	"version": "0.0.1",
 	"type": "commonjs",
 	"publisher": "Jan-Kretschmer",
 	"repository": {
 		"type": "git",
-		"url": "todo"
+		"url": "https://github.com/sijakret/vscode-custom-data-loader"
 	},
 	"bugs": {
-		"url": "todo."
+		"url": "https://github.com/sijakret/vscode-custom-data-loader/issues"
 	},
 	"engines": {
 		"vscode": "^1.32.0"

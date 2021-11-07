@@ -1,6 +1,6 @@
 
 import { ExtensionContext, workspace, window, commands } from 'vscode';
-import { CustomDataProvider } from './cusom-data-provider';
+import { CustomDataProvider, CustomHTMLDataNode } from './cusom-data-provider';
 import htmlSchema from './html.schema';
 import { createScanner, ElementsWithContext } from './scanner';
 import { relative } from 'path';
@@ -17,9 +17,11 @@ export function activate(context: ExtensionContext) {
 	// scanner fires onDidDataChange with list of custom-element.json uris
 	const scanner = createScanner();
 	const provider = new CustomDataProvider(scanner, scheme, htmlSchema);
-	// this will provide the customData:/data.json schema
-	// subscriptions.push(workspace.registerTextDocumentContentProvider(scheme, provider));
-	// this will provide the tree view in the files tap
+
+	// provide the merged custom data via customData:/data.json 
+	subscriptions.push(workspace.registerTextDocumentContentProvider(scheme, provider));
+
+	// provides the tree view in the files tab
 	window.createTreeView(scheme, {
 		treeDataProvider: provider
 	});
@@ -33,12 +35,13 @@ export function activate(context: ExtensionContext) {
 		window.showTextDocument(doc);
 	}));
 
-	subscriptions.push(scanner.onDidDataChange.event((elements:ElementsWithContext[]) => {
-		const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
-		if(ws) {
-			workspace.getConfiguration('html').update('customData',
-				elements.map(e => relative(ws, e.uri.path))
-			)
-		}
-	}));
+	// could also render the merged custom data to a file and update the config
+	// subscriptions.push(scanner.onDidDataChange.event((elements:ElementsWithContext[]) => {
+	// 	const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
+	// 	if(ws) {
+	// 		workspace.getConfiguration('html').update('customData',
+	// 			elements.map(e => relative(ws, e.uri.path))
+	// 		)
+	// 	}
+	// }));
 }

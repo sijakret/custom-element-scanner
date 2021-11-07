@@ -9,7 +9,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@ce/ce": "file:../packages/ce",
     "@spectrum-web-components/button": "^0.14.9"
   }
 }
