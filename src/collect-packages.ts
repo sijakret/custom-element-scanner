@@ -1,6 +1,7 @@
 import { GlobPattern, Uri, workspace } from 'vscode';
 import { dirname, join } from 'path';
 import { limited } from './config'
+import { ElementsWithContext } from './scanner';
 
 
 export interface CollectOptions {
@@ -47,7 +48,7 @@ export function collectDeps(uri:string, levelsToDescend = 1): Thenable<string[]>
 export async function collectCustomElementJsons(uris:Uri[], options: CollectOptions = {
     levelsToDescend: 1,
     exclude: ''
-}): Promise<string[]> {
+}): Promise<ElementsWithContext[]> {
     const {
         levelsToDescend = 1,
         exclude = ''
@@ -58,12 +59,16 @@ export async function collectCustomElementJsons(uris:Uri[], options: CollectOpti
     pkgs = pkgs.filter((v, i, a) => a.indexOf(v) === i)
 
     const pkgList = pkgs.flat();
-    const fields = await Promise.all(pkgList.map(async (pkg) => limited(async () => {
+    const fields = await Promise.all(pkgList.map((pkg) => limited(async () => {
         try {
             const file = await workspace.openTextDocument(Uri.parse(pkg));
-            return join( dirname(pkg), JSON.parse(file.getText()).customElements);
+            const json = JSON.parse(file.getText());
+            return {
+                provider: json.name ? json.name.split('/').join(' ') : undefined,
+                uri: Uri.parse(join( dirname(pkg), json.customElements))
+            }
         } catch(e) {
-            return '';
+            return undefined;
         }
     })));
     return fields.filter(f => !!f);

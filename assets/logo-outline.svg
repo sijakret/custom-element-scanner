@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 256.001 382.787 L 316.7 366.285 L 324.891 277.229 L 216.923 277.229 L 214.247 247.613 L 327.583 247.613 L 330.561 218.564 L 181.436 218.564 L 189.796 306.309 L 292.541 306.309 L 289.112 343.961 L 256.001 352.723 L 222.889 343.961 L 220.814 319.731 L 190.986 319.731 L 195.31 366.297 L 256.001 382.787 Z M 137.75 170.229 L 374.25 170.229 L 352.925 406.73 L 256.001 433.005 L 159.074 406.73 L 137.75 170.229 Z" style="fill: rgba(0, 0, 0, 0); stroke: rgb(0, 0, 0); stroke-width: 8px;"/>
+  <text style="font-family: Arial, sans-serif; font-size: 102.1px; font-weight: 800; stroke: rgb(255, 255, 255); stroke-linejoin: round; stroke-miterlimit: 50; stroke-width: 0px; white-space: pre;" x="111.28" y="138.825">&lt;      &gt;</text>
+  <text style="font-family: Arial, sans-serif; font-size: 154.5px; font-weight: 800; stroke: rgb(255, 255, 255); stroke-linejoin: round; stroke-miterlimit: 50; stroke-width: 0px; text-anchor: middle; white-space: pre;" transform="matrix(0.223939, 0, 0, 0.223939, 230.380463, 69.248734)"><tspan x="114.291" y="51.075">CUSTOM</tspan><tspan x="114.291" dy="1em">​</tspan><tspan>DATA</tspan><tspan x="114.291" dy="1em">​</tspan><tspan>LOADER</tspan></text>
+</svg>

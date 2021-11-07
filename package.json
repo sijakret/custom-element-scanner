@@ -3,6 +3,7 @@
 	"displayName": "VSCode Custom Data Loader",
 	"description": "Automatic discovery of `custom-elements.json` files in your dependencies",
 	"version": "0.0.1",
+	"type": "commonjs",
 	"publisher": "Jan-Kretschmer",
 	"repository": {
 		"type": "git",
@@ -18,51 +19,119 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onFileSystem:custom-data",
-		"onCommand:cds.workspaceInit"
+		"onFileSystem:customData",
+		"onCommand:cds.workspaceInit",
+		"onView:customData"
 	],
 	"main": "./out/extension.js",
+	"icon": "assets/logo2.png",
 	"contributes": {
 		"html": {
 			"customData": [
-				"custom-data:/data.json"
+				"customData:/data.json"
 			]
 		},
+		"views": {
+			"explorer": [
+				{
+					"id": "customData",
+					"name": "Custom Elements"
+				}
+			]
+		},
+		"menus": {
+			"view/item/context": [
+				{
+				  "command": "customData.open",
+				  "when": "view == customData && viewItem == file",
+				  "group": "inline"
+				}
+			],
+			"view/title": [
+				{
+					"command": "customData.refresh",
+					"when": "view == customData",
+					"group": "navigation"
+				},
+				{
+					"command": "customData.setModeManual",
+					"when": "view == customData && customData:mode != 'manual'",
+					"group": "navigation"
+				},
+				{
+					"command": "customData.setModeAuto",
+					"when": "view == customData && customData:mode != 'auto'",
+					"group": "navigation"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "customData.refresh",
+				"title": "Refresh",
+				"icon": "$(search-refresh)"
+			},
+			{
+				"command": "customData.open",
+				"title": "Show file",
+				"icon": "$(settings-edit)"
+			},
+			{
+				"command": "customData.setModeAuto",
+				"title": "Enable automatic scanning",
+				"icon": "$(search-view-icon)"
+			},
+			{
+				"command": "customData.setModeManual",
+				"title": "Disable automatic scanning",
+				"icon": "$(search-stop)"
+			}
+		],
 		"configuration": [
 			{
 				"title": "VSCode custom data scanner",
 				"properties": {
-					"custom-data-scan.concurrency": {
+					"customData.mode": {
+						"type": "string",
+						"default": "manual",
+						"enum": ["auto", "manual"],
+						"enumDescriptions": [
+							"Actively and continuously scans your project for custom element definitions.",
+							"Only scans your project when using the refresh button."
+						  ],
+						"description": "Main operations mode"
+					},
+					"customData.concurrency": {
 						"type": "number",
 						"default": 4,
 						"description": "Max number of parallel globbing promises"
 					},
-					"custom-data-scan.package-json.enabled": {
+					"customData.package-json.enabled": {
 						"type": "boolean",
 						"default": true,
 						"description": "Enable Globbing to discover package.json files with `\"custom-elements\"` fields."
 					},
-					"custom-data-scan.package-json.include": {
+					"customData.package-json.include": {
 						"type": "string",
 						"default": "**/package.json",
 						"description": "Glob pattern to discover package.json files with `\"custom-elements\"` fields."
 					},
-					"custom-data-scan.package-json.exclude": {
+					"customData.package-json.exclude": {
 						"type": "string",
 						"default": "",
 						"description": "Glob pattern to exclude when looking for package.json files with `\"custom-elements\"` fields."
 					},
-					"custom-data-scan.custom-elements.enabled": {
+					"customData.custom-elements.enabled": {
 						"type": "boolean",
 						"default": false,
 						"description": "Enable globbing to discover custom-elements.json files."
 					},
-					"custom-data-scan.custom-elements.include": {
+					"customData.custom-elements.include": {
 						"type": "string",
 						"default": "**/custom-elements.json",
 						"description": "Glob pattern to discover custom-elements.json files."
 					},
-					"custom-data-scan.custom-elements.exclude": {
+					"customData.custom-elements.exclude": {
 						"type": "string",
 						"default": "",
 						"description": "Glob pattern to exclude when looking for custom-elements.json files."
@@ -73,27 +142,28 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
-		"compile": "tsc",
+		"compile": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --sourcemap",
 		"lint": "eslint . --ext .ts,.tsx",
 		"watch": "tsc --watch",
 		"package": "npx vsce package"
 	},
 	"dependencies": {
+		"custom-elements-manifest": "^1.0.0",
 		"jsonschema": "^1.4.0",
-		"lodash.mergewith": "^4.6.2"
+		"lodash.mergewith": "^4.6.2",
+		"p-limit": "^4.0.0"
 	},
 	"customElements": "custom-elements.json",
 	"devDependencies": {
-		"@spectrum-web-components/button": "^0.14.9",
 		"@types/lodash.mergewith": "^4.6.6",
 		"@types/vscode": "^1.32.0",
 		"@typescript-eslint/eslint-plugin": "^4.16.0",
 		"@typescript-eslint/parser": "^4.16.0",
-		"custom-elements-manifest": "^1.0.0",
+		"esbuild": "^0.13.12",
 		"eslint": "^7.21.0",
-		"p-limit": "^4.0.0",
 		"ts-loader": "^9.2.5",
 		"typescript": "^4.2.2",
+		"vsce": "^2.2.0",
 		"webpack": "^5.52.1",
 		"webpack-cli": "^4.8.0"
 	}

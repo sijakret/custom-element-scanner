@@ -1,97 +1,221 @@
 
-import { TextDocumentContentProvider, Uri, EventEmitter, workspace } from 'vscode';
-import { IScanner } from './scanner';
+import vscode, { TextDocumentContentProvider, Uri, window, EventEmitter, workspace, TreeItem, TreeDataProvider, TreeItemCollapsibleState, ThemeIcon } from 'vscode';
+import { ElementsWithContext, IScanner } from './scanner';
 import { Schema, validate } from 'jsonschema'
 import { transform } from './schema-transform';
 import mergeWith from 'lodash.mergewith';
+import { basename } from 'path';
+import { limited } from './config'
 
 // name of virtual file doesn't really matter
 const VIRTUAL_FILENAME = 'data.json';
 
+interface VSCodeData {
+    tags: {
+        name: string
+    }[]
+};
 /**
  * validates, merges and exposes the documents
  * the data files need to be mergable json files
  * array alements will be concatinated during merge.
  */
-export class CustomDataProvider implements TextDocumentContentProvider {
+export class CustomDataProvider implements TextDocumentContentProvider, TreeDataProvider<TreeItem> {
     // emitter and its event
     onDidChangeEmitter = new EventEmitter<Uri>();
     onDidChange = this.onDidChangeEmitter.event;
+    onDidChangeTreeDataEmitter = new EventEmitter<CustomHTMLDataNode>();
+    onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
     // stores combined data
-    private data = {}
+    private _data = {};
+    private _scanning = true;
     private uri: Uri;
-    
-    constructor(private _scanner: IScanner, private scheme:string, private schema: Schema) {
-        this._scanner.onDidDataChange.event((uris:Uri[]) => this.updateData(uris));
+    private _customElementFiles: TreeItem[] = []
+
+    constructor(private _scanner: IScanner, private scheme: string, private schema: Schema) {
+        this._scanner.onDidDataChange.event((elements: ElementsWithContext[]) => this.updateData(elements));
+        this._scanner.onDidStartScan.event(() => this.scanning = true);
         this.uri = Uri.parse(`${this.scheme}:/${VIRTUAL_FILENAME}`);
+
+        this.scanning = true;
     }
 
     /**
      * merges schemas, stores them in temp doc
      * which is kept in memory and served via provideTextDocumentContent
      */
-    async updateData(uris:Uri[]) {
-        // combined doc
-        this.data = await this.mergeCustomElementsJson(uris);
+    async updateData(elements: ElementsWithContext[]) {
+        this.scanning = true;
 
-        // signal the data has changed
-        this.onDidChangeEmitter.fire(this.uri);
+        // combines doc, updates this.customElementFiles and this.data
+        await this.mergeCustomElementsJson(elements);
+
+        this.scanning = false;
     }
 
     /**
      * merges several custom element schemas
      * @param uris 
      */
-    async mergeCustomElementsJson(uris:Uri[]) {
+    async mergeCustomElementsJson(elements: ElementsWithContext[]) {
         // make uris unique
-        uris = [...new Set(uris.map(u => u.toString()))].map(u => Uri.parse(u));
+        elements = elements.filter((value, index, self) => self.findIndex((a) => 
+            a.uri.toString() === value.uri.toString()
+        ) === index)
 
         // parse files
-        let docs = await Promise.all(uris.map(async (uri) => {
-            try {
-                const str = (await workspace.openTextDocument(uri)).getText();
-                return transform(JSON.parse(str), uri.toString());
-            } catch(e) {
-                // TODO: somehow let user know a schema file did not parse
-                return undefined
-            }
-        }));
+        try {
+            this.customElementFiles = await Promise.all(elements.map((element) => limited(async () => {
+                try {
+                    // parse files
+                    const json = JSON.parse((await workspace.openTextDocument(element.uri)).getText());
+                    // transform files to vscode format if needed
+                    const data = transform(json, element.uri.toString());
+                    // validate
+                    const { valid, errors } = validate(data, this.schema);
+                    // carry over last collapsibleState state
+                    const collapsed = this.customElementFiles.find(n => n.resourceUri === element.uri)?.collapsibleState || TreeItemCollapsibleState.Collapsed;
+                    const node = new CustomHTMLDataNode(element, valid ? data : undefined, errors.map(e => e.toString()), collapsed);
+                    return node;
+                } catch (e: any) {
+                    // TODO: somehow let user know a schema file did not parse
+                    return new CustomHTMLDataNode(element, undefined, e && e.toString ? [`Error: ${e.toString()}`] : ['Error: unknown'], TreeItemCollapsibleState.Collapsed);
+                }
+            })));
 
-        // filter out empty files
-        docs = docs.filter(doc => !!doc);
-        
-        // validate files
-        docs = docs.filter(doc => {
-            const result = validate(doc, this.schema);
-            // TODO: somehow let user know a schema file did not validate
-            return result.valid;
-        });
-        
+        } catch (e: any) {
+            this.customElementFiles = [
+                new TreeItem(`Error: ${e && e.toString ? e.toString() : 'unknown'}`)
+            ]
+            return;
+        }
+
         // combined doc
-        const data = {} 
-        
+        const data = {};
+
         // aggregate data
-        docs.forEach(doc => {
-            mergeWith(data, doc, function (objValue: unknown, srcValue: unknown) {
+        (this.customElementFiles as CustomHTMLDataNode[]).forEach((node: CustomHTMLDataNode) => {
+            node.data && mergeWith(data, node.data, function (objValue: unknown, srcValue: unknown) {
                 if (Array.isArray(objValue)) {
                     return objValue.concat(srcValue);
                 }
             });
         });
-        return data;
+
+        this.data = data;
     }
 
-    
+     /**
+     * getter and setter that will signal provider update
+     */
+    get scanning() {
+        return this._scanning;
+    }
+
+    set scanning(scanning: boolean) {
+        this._scanning = scanning;
+        // signal data has changed to tree view
+        this.onDidChangeTreeDataEmitter.fire(undefined)
+    }
+
+
     /**
+     * getter and setter that will signal provider update
+     */
+     get customElementFiles() {
+        return [
+            ...( this._scanning ? [
+                (()  => {
+                    const icon = new TreeItem('scanning..');
+                    icon.iconPath = 'sync';
+                    return icon;
+                })()
+            ] : []),
+            ...this._customElementFiles
+        ]
+    }
+
+    set customElementFiles(items: TreeItem[]) {
+        this._customElementFiles = items;
+        // signal data has changed to tree view
+        this.onDidChangeTreeDataEmitter.fire(undefined)
+    }
+
+    /**
+     * getter and setter that will signal provider update
+     */
+     get data() {
+        return this._data;
+    }
+
+    set data(data: any) {
+        this._data = data;
+        // signal the data has changed to html-language-service
+        this.onDidChangeEmitter.fire(this.uri);
+    }
+
+
+    /**
+     * TextDocumentContentProvider API
      * serve merged custom elements schema
      */
     provideTextDocumentContent(uri: Uri): string {
-        if(uri.toString() !== this.uri.toString()) {
+        if (uri.toString() !== this.uri.toString()) {
             throw new Error(`unknown document ${uri.toString()}`);
         }
         // provide joint custom element data
         return JSON.stringify(this.data)
     }
-};
 
+    /**
+     * TreeDataProvider API
+     */
+    getTreeItem(element: CustomHTMLDataNode): TreeItem {
+        return element;
+    }
+
+    getChildren(element?: CustomHTMLDataNode): Thenable<TreeItem[] | undefined> {
+        if (!workspace.workspaceFolders?.length) {
+            window.showInformationMessage('No dependency in empty workspace');
+            return Promise.resolve([]);
+        }
+
+        if (!element) {
+            return Promise.resolve(this.customElementFiles);
+        } else if (element instanceof CustomHTMLDataNode) {
+            return Promise.resolve(element.tags);
+        } else {
+            return Promise.resolve(undefined);
+        }
+    };
+}
+
+
+export class CustomHTMLDataNode extends TreeItem {
+
+    constructor(
+        public element: ElementsWithContext,
+        public data: VSCodeData | undefined,
+        public errors: string[],
+        public readonly collapsibleState: TreeItemCollapsibleState
+    ) {
+        super(basename(element.uri.path), data && data.tags ? collapsibleState : TreeItemCollapsibleState.None);
+        this.iconPath = ThemeIcon.File;
+        this.label = basename(element.uri.path);
+        this.resourceUri = Uri.parse('fake/elements.html')
+        this.tooltip = element.uri.path;
+        this.description = element.provider ? basename(element.provider) : '';
+        this.contextValue = 'file';
+    }
+    
+    get tags() {
+        return this.data ? (this.data as VSCodeData).tags.map(tag => {
+            const item = new TreeItem(tag.name);
+            item.description = 'tag'
+            item.label = tag.name;
+            item.resourceUri = Uri.parse('fake/tag.html')
+            return item;
+        }) : undefined
+    }
+}

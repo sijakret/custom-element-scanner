@@ -1,8 +1,0 @@
-Thanks for the reply!
-
-So that would mean basically only one change in vscode: allow URLs instead of only paths.
-This looks like the place to start, since it looks like the path setting gets locked down to a path here. https://github.com/microsoft/vscode/blob/94c9ea46838a9a619aeafb7e8afd1170c967bb55/extensions/html-language-features/client/src/customData.ts#L53 (analogously for css).
-Looking at the code, this also explains why reloading actually takes place when the settings are changed (as opposed to when the file pointed to in the settings changes)
-
-
-The second part would be to create an extension that actually contributes `customData` as a url to a virtual document which document it provides itself dynamically via document content provider API, correct?
