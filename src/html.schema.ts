@@ -46,7 +46,10 @@ export default {
     },
     "properties": {
       "version": {
-        "const": 1.1,
+        "enum": [
+          1.1,
+          1
+        ],
         "description": "The custom data version",
         "type": "number"
       },

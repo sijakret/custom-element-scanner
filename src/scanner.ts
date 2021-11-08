@@ -1,5 +1,5 @@
 import { Uri, EventEmitter, workspace, FileSystemWatcher, Disposable} from "vscode";
-import { collectCustomElementJsons } from "./collect-packages";
+import { collectCustomElementJsons, CollectOptions } from "./collect-packages";
 import { configKey } from './config';
 import { relative } from 'path';
 
@@ -90,6 +90,8 @@ class Scanner implements IScanner {
 
 export function createScanner(): IScanner {
     const watching: Disposable[] = []
+    let options: CollectOptions | undefined;
+
     const dispose = () => {
         watching.forEach(w => w.dispose())
     }
@@ -113,30 +115,40 @@ export function createScanner(): IScanner {
     const update = () => {
         scanner.onDidDataChange.fire(paths);
     }
-    pkgScanner.onDidDataChange.event(async (elements:ElementsWithContext[]) => {
-        // dispose old stuff
-        dispose();
-        // at this point we have all package.json files that were
-        // discovered by the vscode apis via findFiles/watch
-        // map package.json files to custom-elements fields
-        paths = await collectCustomElementJsons(elements.map(e => e.uri), {
+    
+    const scan = async (elements:ElementsWithContext[]) => {
+        // cancels last request
+        options && (options.cancelled = true);
+        // new request
+        (async (options:CollectOptions) => {
+            // dispose old stuff
+            dispose();
+            scanner.onDidStartScan.fire();
+            // at this point we have all package.json files that were
+            // discovered by the vscode apis via findFiles/watch
+            // map package.json files to custom-elements fields
+            paths = await collectCustomElementJsons(elements.map(e => e.uri), options);
+            // watch all the custom elements files explicitly
+            if(!options.cancelled) {
+                paths.map(({uri}) => {
+                    const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
+                    const wsPath = relative(ws || '', uri.path)
+                    const watcher = workspace.createFileSystemWatcher(uri.path);
+                    watching.push(watcher.onDidChange(() => update()));
+                    watching.push(watcher.onDidDelete((e:Uri) => update()));
+                    watching.push(watcher);
+                });
+                update();
+            }
+        })(options = {
             exclude: pkgScanner.config.exclude
         });
-        // watch all the custom elements files explicitly
-        paths.map(({uri}) => {
-            const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
-            const wsPath = relative(ws || '', uri.path)
-            const watcher = workspace.createFileSystemWatcher(uri.path);
-            watching.push(watcher.onDidChange(() => update()));
-            watching.push(watcher.onDidDelete((e:Uri) => update()));
-            watching.push(watcher);
-        })
-        update();
-    })
+    }
+
+    pkgScanner.onDidDataChange.event(scan)
     elementsScanner.onDidDataChange.event((elements) => scanner.onDidDataChange.fire(elements));
     pkgScanner.onDidStartScan.event(() => scanner.onDidStartScan.fire());
     elementsScanner.onDidStartScan.event(() => scanner.onDidStartScan.fire());
-    
     return scanner;
 }
 

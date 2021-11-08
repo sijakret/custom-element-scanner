@@ -80,13 +80,13 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
                     return node;
                 } catch (e: any) {
                     // TODO: somehow let user know a schema file did not parse
-                    return new CustomHTMLDataNode(element, undefined, e && e.toString ? [`Error: ${e.toString()}`] : ['Error: unknown'], TreeItemCollapsibleState.Collapsed);
+                    return new CustomHTMLDataNode(element, undefined, e && e.toString ? [`${e.toString()}`] : ['Error: unknown'], TreeItemCollapsibleState.Collapsed);
                 }
             })));
 
         } catch (e: any) {
             this.customElementFiles = [
-                new TreeItem(`Error: ${e && e.toString ? e.toString() : 'unknown'}`)
+                new TreeItem(`${e && e.toString ? e.toString() : 'unknown'}`)
             ]
             return;
         }
@@ -128,7 +128,6 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
             ...( this._scanning ? [
                 (()  => {
                     const icon = new TreeItem('scanning..');
-                    icon.iconPath = 'sync';
                     return icon;
                 })()
             ] : []),
@@ -203,13 +202,16 @@ export class CustomHTMLDataNode extends TreeItem {
         super(basename(element.uri.path), data && data.tags ? collapsibleState : TreeItemCollapsibleState.None);
         this.iconPath = ThemeIcon.File;
         this.label = basename(element.uri.path);
-        this.resourceUri = Uri.parse('fake/elements.html')
+        this.resourceUri = element.uri;
         this.tooltip = element.uri.path;
         this.description = element.provider ? basename(element.provider) : '';
         this.contextValue = 'file';
     }
     
     get tags() {
+        if(this.errors.length > 0) {
+            return this.errors.map(e => new TreeItem(e));
+        }
         return this.data ? (this.data as VSCodeData).tags.map(tag => {
             const item = new TreeItem(tag.name);
             item.description = 'tag'

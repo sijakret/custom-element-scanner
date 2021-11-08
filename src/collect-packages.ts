@@ -6,7 +6,8 @@ import { ElementsWithContext } from './scanner';
 
 export interface CollectOptions {
     levelsToDescend?: number,
-    exclude?: GlobPattern
+    exclude?: GlobPattern,
+    cancelled?: Boolean
 }
 
 /**
@@ -14,7 +15,10 @@ export interface CollectOptions {
  * of the package.json Uris of the corresponding deps
  * @param uri 
  */
-export function collectDeps(uri:string, levelsToDescend = 1): Thenable<string[]> {
+export function collectDeps(uri:string, known:string[], levelsToDescend:number, options:CollectOptions): Thenable<string[]> {
+    if(known.indexOf(uri) !== -1) {
+        return Promise.resolve([]);
+    }
     return limited(() => workspace.openTextDocument(uri).then(async (doc) => {
         try {
             const pkg = JSON.parse(doc.getText());
@@ -24,7 +28,7 @@ export function collectDeps(uri:string, levelsToDescend = 1): Thenable<string[]>
             });
             deps = deps.map(d => join(dirname(uri), 'node_modules', d, 'package.json'));
             if(--levelsToDescend > 0 ) {
-                deps = (await Promise.all(deps.map(d => collectDeps(join(dirname(uri), d), levelsToDescend)))).reduce((a, d) => [...a,...d], [])
+                deps = (await Promise.all(deps.map(d => options.cancelled ? [] : collectDeps(join(dirname(uri), d), known, levelsToDescend, options)))).reduce((a, d) => [...a,...d], [])
             }
             deps = [
                 ...deps,
@@ -47,19 +51,29 @@ export function collectDeps(uri:string, levelsToDescend = 1): Thenable<string[]>
  */
 export async function collectCustomElementJsons(uris:Uri[], options: CollectOptions = {
     levelsToDescend: 1,
-    exclude: ''
+    exclude: '',
+    cancelled: false
 }): Promise<ElementsWithContext[]> {
     const {
-        levelsToDescend = 1,
-        exclude = ''
+        levelsToDescend = 1
     } = options;
-    let pkgs = await Promise.all(uris.map(uri => collectDeps(uri.fsPath, levelsToDescend)));
+    if(options.cancelled) {
+        return [];
+    }
+    const known = uris.map(u => u.fsPath);
+    let pkgs = [
+        ...known,
+        ...await Promise.all(uris.map(uri => collectDeps(uri.fsPath, known, levelsToDescend-1, options)))
+    ];
 
     // make list of package.jsons unique
     pkgs = pkgs.filter((v, i, a) => a.indexOf(v) === i)
 
     const pkgList = pkgs.flat();
     const fields = await Promise.all(pkgList.map((pkg) => limited(async () => {
+        if(options.cancelled) {
+            return undefined
+        }
         try {
             const file = await workspace.openTextDocument(Uri.parse(pkg));
             const json = JSON.parse(file.getText());
