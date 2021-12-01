@@ -10,6 +10,6 @@ Supports the following formats:
 * [vscode-custom-data](https://github.com/microsoft/vscode-custom-data/tree/main/samples/webcomponents)
 * [custom-elements.json](https://github.com/webcomponents/custom-elements-manifest) (is auto-converted to vscode format)
 
-Adds a Custom Elements TreeView to VSCode that gives an overview of which definitions have been discovered
+Adds a Custom Elements View Containers to VSCode that gives an overview of which definitions have been discovered
 
 <img src="docs/tree-view.png" width=500 />

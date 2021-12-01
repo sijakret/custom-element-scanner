@@ -92,9 +92,16 @@ export async function collectCustomElementJsons(
 
   // make list of package.jsons unique
   let pkgList = pkgs.flat();
-  const stats = await Promise.all(pkgList.map(p => workspace.fs.stat(Uri.parse(p))));
-  pkgList = pkgList.filter((v, i, a) => a.findIndex((other,j) => other === v || isSameFile(stats[i], stats[j])) === i);
-  
+  const stats = await Promise.all(
+    pkgList.map((p) => workspace.fs.stat(Uri.parse(p)))
+  );
+  pkgList = pkgList.filter(
+    (v, i, a) =>
+      a.findIndex(
+        (other, j) => other === v || isSameFile(stats[i], stats[j])
+      ) === i
+  );
+
   const fields = await Promise.all(
     pkgList.map((pkg) =>
       limited(async () => {
