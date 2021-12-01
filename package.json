@@ -1,7 +1,7 @@
 {
-	"name": "custom-data-scan",
-	"displayName": "Custom Data Scanner",
-	"description": "Scans for custom elements files in your project and makes them available to hmlt-language-service",
+	"name": "custom-element-scanner",
+	"displayName": "Custom Element Scanner",
+	"description": "Scans for custom elements files in your project and makes them available to hmlt language service",
 	"version": "0.0.1",
 	"type": "commonjs",
 	"publisher": "Jan-Kretschmer",
@@ -13,125 +13,157 @@
 		"url": "https://github.com/sijakret/vscode-custom-data-loader/issues"
 	},
 	"engines": {
-		"vscode": "^1.32.0"
+		"vscode": "^1.62.0"
 	},
 	"categories": [
 		"Other"
 	],
 	"activationEvents": [
-		"onFileSystem:customData",
+		"onFileSystem:customElementScanner",
 		"onCommand:cds.workspaceInit",
-		"onView:customData"
+		"onView:customElementScanner"
 	],
 	"main": "./out/extension.js",
-	"icon": "assets/logo2.png",
+	"icon": "assets/logo6.png",
 	"contributes": {
 		"html": {
 			"customData": [
-				"customData:/data.json"
+				"customElementScanner:/data.json"
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+			  {
+				"id": "customElementScanner",
+				"title": "Custom Element Scanner",
+				"icon": "assets/container-logo.svg"
+			  }
 			]
 		},
 		"views": {
-			"explorer": [
+			"customElementScanner": [
 				{
-					"id": "customData",
+					"id": "customElementScanner",
 					"name": "Custom Elements"
 				}
 			]
 		},
+		"viewsWelcome": [
+			{
+				"view": "customElementScanner",
+				"contents": "Scan your project for [custom element definitions](https://TODO.com) and feed them to the vscode html language service.\nAutomatic scanning will examine your project structure and find custom elements.\nNote: if this becomes slow on large projects, consider using manual mode.\n[Enable Automatic Scanning](command:customElementScanner.setModeAuto)\nManual scanning only looks for new custom element definitions when you hit the refresh button in the header of this view.\n[Scan Project Now](command:customElementScanner.refresh)"
+			}
+		],
 		"menus": {
 			"view/item/context": [
 				{
-				  "command": "customData.open",
-				  "when": "view == customData && viewItem == file",
-				  "group": "inline"
+					"command": "customElementScanner.open",
+					"when": "view == customElementScanner && viewItem == file",
+					"group": "inline"
 				}
 			],
 			"view/title": [
 				{
-					"command": "customData.refresh",
-					"when": "view == customData",
+					"command": "customElementScanner.refresh",
+					"when": "view == customElementScanner",
 					"group": "navigation"
 				},
 				{
-					"command": "customData.setModeManual",
-					"when": "view == customData && customData:mode != 'manual'",
+					"command": "customElementScanner.setModeManual",
+					"when": "view == customElementScanner && customElementScanner:mode != 'manual'",
 					"group": "navigation"
 				},
 				{
-					"command": "customData.setModeAuto",
-					"when": "view == customData && customData:mode != 'auto'",
+					"command": "customElementScanner.setModeAuto",
+					"when": "view == customElementScanner && customElementScanner:mode != 'auto'",
 					"group": "navigation"
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "customData.refresh",
+				"command": "customElementScanner.refresh",
 				"title": "Refresh",
 				"icon": "$(search-refresh)"
 			},
 			{
-				"command": "customData.open",
+				"command": "customElementScanner.open",
 				"title": "Show file",
 				"icon": "$(settings-edit)"
 			},
 			{
-				"command": "customData.setModeAuto",
+				"command": "customElementScanner.setModeAuto",
 				"title": "Enable automatic scanning",
 				"icon": "$(search-view-icon)"
 			},
 			{
-				"command": "customData.setModeManual",
+				"command": "customElementScanner.setModeManual",
 				"title": "Disable automatic scanning",
 				"icon": "$(search-stop)"
+			},
+			{
+				"command": "customElementScanner.setDisplayModeFiles",
+				"title": "Show files",
+				"icon": "$(eye)"
+			},
+			{
+				"command": "customElementScanner.setDisplayModeTags",
+				"title": "Show Tags",
+				"icon": "$(eye)"
 			}
 		],
 		"configuration": [
 			{
 				"title": "VSCode custom data scanner",
 				"properties": {
-					"customData.mode": {
+					"customElementScanner.mode": {
 						"type": "string",
 						"default": "manual",
-						"enum": ["auto", "manual"],
+						"enum": [
+							"auto",
+							"manual"
+						],
 						"enumDescriptions": [
 							"Actively and continuously scans your project for custom element definitions.",
 							"Only scans your project when using the refresh button."
-						  ],
+						],
 						"description": "Main operations mode"
 					},
-					"customData.concurrency": {
+					"customElementScanner.paths": {
+						"type": "array",
+						"description": "Used to store the discovered custom-element.json files when in manual mode"
+					},
+					"customElementScanner.concurrency": {
 						"type": "number",
 						"default": 4,
 						"description": "Max number of parallel globbing promises"
 					},
-					"customData.package-json.enabled": {
+					"customElementScanner.package-json.enabled": {
 						"type": "boolean",
 						"default": true,
 						"description": "Enable Globbing to discover package.json files with `\"custom-elements\"` fields."
 					},
-					"customData.package-json.include": {
+					"customElementScanner.package-json.include": {
 						"type": "string",
 						"default": "**/package.json",
 						"description": "Glob pattern to discover package.json files with `\"custom-elements\"` fields."
 					},
-					"customData.package-json.exclude": {
+					"customElementScanner.package-json.exclude": {
 						"type": "string",
 						"default": "",
 						"description": "Glob pattern to exclude when looking for package.json files with `\"custom-elements\"` fields."
 					},
-					"customData.custom-elements.enabled": {
+					"customElementScanner.custom-elements.enabled": {
 						"type": "boolean",
 						"default": false,
 						"description": "Enable globbing to discover custom-elements.json files."
 					},
-					"customData.custom-elements.include": {
+					"customElementScanner.custom-elements.include": {
 						"type": "string",
 						"default": "**/custom-elements.json",
 						"description": "Glob pattern to discover custom-elements.json files."
 					},
-					"customData.custom-elements.exclude": {
+					"customElementScanner.custom-elements.exclude": {
 						"type": "string",
 						"default": "",
 						"description": "Glob pattern to exclude when looking for custom-elements.json files."
@@ -143,6 +175,8 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --sourcemap",
+		"compile-in-place": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=/Users/sijakret/.vscode-oss-dev/extensions/jan-kretschmer.custom-element-scanner-0.0.1/out/extension.js --sourcemap",
+		"watch-in-place": "npm run compile-in-place -- --watch",
 		"lint": "eslint . --ext .ts,.tsx",
 		"watch": "tsc --watch",
 		"package": "npx vsce package"
@@ -156,7 +190,7 @@
 	"customElements": "custom-elements.json",
 	"devDependencies": {
 		"@types/lodash.mergewith": "^4.6.6",
-		"@types/vscode": "^1.32.0",
+		"@types/vscode": "^1.62.0",
 		"@typescript-eslint/eslint-plugin": "^4.16.0",
 		"@typescript-eslint/parser": "^4.16.0",
 		"esbuild": "^0.13.12",

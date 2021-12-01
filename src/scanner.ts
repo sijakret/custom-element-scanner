@@ -1,6 +1,6 @@
 import { Uri, EventEmitter, workspace, FileSystemWatcher, Disposable} from "vscode";
 import { collectCustomElementJsons, CollectOptions } from "./collect-packages";
-import { configKey } from './config';
+import { CFG_MODE, CFG_MODE_AUTO, CFG_PATHS, getConfiguration, affectsConfiguration, CFG_MODE_MANUAL } from './config';
 import { relative } from 'path';
 
 export interface ElementsWithContext {
@@ -11,6 +11,17 @@ export interface IScanner {
     onDidDataChange: EventEmitter<ElementsWithContext[]>
     onDidStartScan: EventEmitter<void>
     refresh: () => void
+}
+
+function serializeElementsWithContext(e:ElementsWithContext):string {
+    return `${e.provider || ''}:/${e.uri.toString()}`;
+}
+function deserializeElementsWithContext(e:string):ElementsWithContext {
+    const split = e.split(':/')
+    return {
+        provider: split[0] || undefined,
+        uri: Uri.parse(split.slice(1).join(':/'))
+    };
 }
 
 /**
@@ -24,37 +35,40 @@ class Scanner implements IScanner {
     private uris: ElementsWithContext[] = [];
 
     constructor(private _rootConfigKey:string) {
-        this.setup();
         workspace.onDidChangeConfiguration((e) => {
-            if(e.affectsConfiguration(this._rootConfigKey)) {
+            // will not fire on this.config.mode!!
+            if(affectsConfiguration(e)) {
                 this.setup();
             }
-        })
+        });
     }
 
     get config() {
         const configuration = workspace.getConfiguration();
         return  {
-            enabled: configuration.get(`${this._rootConfigKey}.enabled`) as string,
-            include: configuration.get(`${this._rootConfigKey}.include`) as string,
-            exclude: configuration.get(`${this._rootConfigKey}.exclude`) as string
-        } 
+            mode: getConfiguration().get(CFG_MODE),
+            enabled: getConfiguration().get(`${this._rootConfigKey}.enabled`) as string,
+            include: getConfiguration().get(`${this._rootConfigKey}.include`) as string,
+            exclude: getConfiguration().get(`${this._rootConfigKey}.exclude`) as string
+        };
     }
 
     refresh() {
-        this.setup();
+        this.setup(true);
     }
 
-    async setup() {
+    async setup(force:boolean = false) {
         if(!this.config.enabled) {
             return;
+        }
+        if(!force && this.config.mode !== CFG_MODE_AUTO) {
+            return
         }
         this.onDidStartScan.fire();
         this._watcher?.dispose();
         /**
          * This is not neccessarily very correct.
-         * The thinking is: we use changes to the package.json
-         * to trigger a rescan for custom elements.json
+         * also probably leads to excessive scanning!
          */
         this.uris = (await workspace.findFiles(`${this.config.include}`, `${this.config.exclude}`)).map(uri => ({uri}));
         this._watcher = workspace.createFileSystemWatcher(`${this.config.include}`);
@@ -89,12 +103,12 @@ class Scanner implements IScanner {
  */
 
 export function createScanner(): IScanner {
-    const watching: Disposable[] = []
+    const watching: Disposable[] = [];
     let options: CollectOptions | undefined;
 
     const dispose = () => {
-        watching.forEach(w => w.dispose())
-    }
+        watching.forEach(w => w.dispose());
+    };
     const scanner = {
         onDidDataChange: new EventEmitter<ElementsWithContext[]> (),
         onDidStartScan: new EventEmitter<void>(),
@@ -105,16 +119,59 @@ export function createScanner(): IScanner {
             pkgScanner.refresh();
             elementsScanner.refresh();
         }
-    }
-    // composed scanner that will detecte element.json files
-    // either directly or via package.json files
-    const pkgScanner = new Scanner([configKey, 'package-json'].join('.'));
-    const elementsScanner = new Scanner([configKey, 'custom-elements'].join('.'));
+    };
 
-    let paths:ElementsWithContext[];
-    const update = () => {
-        scanner.onDidDataChange.fire(paths);
+    const store = (force = false) => {
+        if(force || getConfiguration().get(CFG_MODE) === CFG_MODE_MANUAL) {
+            const paths = [...pkgPaths, ...elemPaths].map(p => serializeElementsWithContext(p));
+            const unique = paths.filter((p,i,a) => a.indexOf(p) === i);
+            if(!unique.length) {
+                getConfiguration().update(CFG_PATHS, undefined)
+            } else {
+                getConfiguration().update(CFG_PATHS, unique)
+            }
+        }
     }
+    const load = () => {
+        // get stored elemPaths from config
+        elemPaths = (getConfiguration().get<string[]>(CFG_PATHS) || []).map(
+            p => deserializeElementsWithContext(p)
+        );
+        pkgPaths = []; // only storing custom-elements.json files for now
+    }
+
+    workspace.onDidChangeConfiguration((e) => {
+        if(affectsConfiguration(e, CFG_MODE)) {
+            if(pkgScanner.config.mode === CFG_MODE_AUTO) {
+                scanner.refresh();
+            }
+            if(pkgScanner.config.mode === CFG_MODE_MANUAL) {
+                // switching to manual mode
+                // salvage what has been discovered in automatic mode
+                store(true);
+            }
+        }
+        if(affectsConfiguration(e, CFG_PATHS) && pkgScanner.config.mode === CFG_MODE_MANUAL) {
+            load();
+            update();
+        }
+    });
+
+    // composed scanner that will detect element.json files
+    // either directly or via package.json files
+    let pkgPaths:ElementsWithContext[] = [];
+    let elemPaths:ElementsWithContext[] = [];
+    load();
+
+    const pkgScanner = new Scanner('package-json');
+    const elementsScanner = new Scanner('custom-elements');
+
+    // emit merged customElement files discovered via filesystem directly
+    // and via customElements fields in package.json files
+    const update = async () => {
+        store();
+        scanner.onDidDataChange.fire([...pkgPaths, ...elemPaths]);
+    };
     
     const scan = async (elements:ElementsWithContext[]) => {
         // cancels last request
@@ -127,28 +184,38 @@ export function createScanner(): IScanner {
             // at this point we have all package.json files that were
             // discovered by the vscode apis via findFiles/watch
             // map package.json files to custom-elements fields
-            paths = await collectCustomElementJsons(elements.map(e => e.uri), options);
+            pkgPaths = await collectCustomElementJsons(elements.map(e => e.uri), options);
             // watch all the custom elements files explicitly
             if(!options.cancelled) {
-                paths.map(({uri}) => {
-                    const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
-                    const wsPath = relative(ws || '', uri.path)
-                    const watcher = workspace.createFileSystemWatcher(uri.path);
-                    watching.push(watcher.onDidChange(() => update()));
-                    watching.push(watcher.onDidDelete((e:Uri) => update()));
-                    watching.push(watcher);
-                });
+                // pkgPaths.forEach(({uri}) => {
+                //     const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
+                //     const wsPath = relative(ws || '', uri.path);
+                //     const watcher = workspace.createFileSystemWatcher(uri.path);
+                //     watching.push(watcher.onDidChange(() => update()));
+                //     watching.push(watcher.onDidDelete((e:Uri) => update()));
+                //     watching.push(watcher);
+                // });
                 update();
             }
         })(options = {
             exclude: pkgScanner.config.exclude
         });
-    }
-
-    pkgScanner.onDidDataChange.event(scan)
-    elementsScanner.onDidDataChange.event((elements) => scanner.onDidDataChange.fire(elements));
+    };
+    pkgScanner.onDidDataChange.event(scan);
     pkgScanner.onDidStartScan.event(() => scanner.onDidStartScan.fire());
+
+    elementsScanner.onDidDataChange.event((elements) => {
+        elemPaths = elements;
+        update();
+    });
     elementsScanner.onDidStartScan.event(() => scanner.onDidStartScan.fire());
+    if(elemPaths.length) {
+        // wait until provider has hopefully subscribed
+        // and fire initial data
+        setTimeout(() => {
+            update();
+        }, 1000)
+    }
     return scanner;
 }
 

@@ -2,12 +2,11 @@
 import { ExtensionContext, workspace, window, commands } from 'vscode';
 import { CustomDataProvider, CustomHTMLDataNode } from './cusom-data-provider';
 import htmlSchema from './html.schema';
-import { createScanner, ElementsWithContext } from './scanner';
-import { relative } from 'path';
-import { setupContext } from './config';
+import { createScanner } from './scanner';
+import { setupContext, configKey } from './config';
 
 // virtual scheme that will map to dynamically aggregated custom-elements.json
-const scheme = 'customData';
+const scheme = configKey;
 
 export function activate(context: ExtensionContext) {
 	const { subscriptions } = context;
@@ -18,7 +17,7 @@ export function activate(context: ExtensionContext) {
 	const scanner = createScanner();
 	const provider = new CustomDataProvider(scanner, scheme, htmlSchema);
 
-	// provide the merged custom data via customData:/data.json 
+	// provide the merged custom data via customElementScanner:/data.json 
 	subscriptions.push(workspace.registerTextDocumentContentProvider(scheme, provider));
 
 	// provides the tree view in the files tab
@@ -26,22 +25,12 @@ export function activate(context: ExtensionContext) {
 		treeDataProvider: provider
 	});
 
-	subscriptions.push(commands.registerCommand('customData.refresh', () =>
+	subscriptions.push(commands.registerCommand(`${configKey}.refresh`, () =>
 		scanner.refresh()
 	));
 
-	subscriptions.push(commands.registerCommand('customData.open', async (item:CustomHTMLDataNode) => {
+	subscriptions.push(commands.registerCommand(`${configKey}.open`, async (item:CustomHTMLDataNode) => {
 		const doc = await workspace.openTextDocument(item.element.uri);
 		window.showTextDocument(doc);
 	}));
-
-	// could also render the merged custom data to a file and update the config
-	// subscriptions.push(scanner.onDidDataChange.event((elements:ElementsWithContext[]) => {
-	// 	const ws = workspace.workspaceFolders && workspace.workspaceFolders[0].uri.path;
-	// 	if(ws) {
-	// 		workspace.getConfiguration('html').update('customData',
-	// 			elements.map(e => relative(ws, e.uri.path))
-	// 		)
-	// 	}
-	// }));
 }

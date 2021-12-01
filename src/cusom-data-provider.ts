@@ -1,20 +1,25 @@
 
-import vscode, { TextDocumentContentProvider, Uri, window, EventEmitter, workspace, TreeItem, TreeDataProvider, TreeItemCollapsibleState, ThemeIcon } from 'vscode';
+import { TextDocumentContentProvider, Uri, window, EventEmitter, workspace, TreeItem, TreeDataProvider, TreeItemCollapsibleState, ThemeIcon, FileStat, MarkdownString } from 'vscode';
 import { ElementsWithContext, IScanner } from './scanner';
 import { Schema, validate } from 'jsonschema'
 import { transform } from './schema-transform';
 import mergeWith from 'lodash.mergewith';
 import { basename } from 'path';
 import { limited } from './config'
+import { isSameFile } from './utils';
 
 // name of virtual file doesn't really matter
 const VIRTUAL_FILENAME = 'data.json';
 
 interface VSCodeData {
     tags: {
-        name: string
+        name: string,
+        description: string
     }[]
 };
+interface ElementsWithContextAndStats extends ElementsWithContext {
+    stats?:FileStat
+}
 /**
  * validates, merges and exposes the documents
  * the data files need to be mergable json files
@@ -24,21 +29,19 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
     // emitter and its event
     onDidChangeEmitter = new EventEmitter<Uri>();
     onDidChange = this.onDidChangeEmitter.event;
-    onDidChangeTreeDataEmitter = new EventEmitter<CustomHTMLDataNode>();
+    onDidChangeTreeDataEmitter = new EventEmitter<TreeItem>();
     onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
     // stores combined data
     private _data = {};
-    private _scanning = true;
+    private _scanning: boolean |undefined = undefined;
     private uri: Uri;
-    private _customElementFiles: TreeItem[] = []
+    private _customElements: TreeItem[] = []
 
     constructor(private _scanner: IScanner, private scheme: string, private schema: Schema) {
         this._scanner.onDidDataChange.event((elements: ElementsWithContext[]) => this.updateData(elements));
         this._scanner.onDidStartScan.event(() => this.scanning = true);
         this.uri = Uri.parse(`${this.scheme}:/${VIRTUAL_FILENAME}`);
-
-        this.scanning = true;
     }
 
     /**
@@ -60,22 +63,47 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
      */
     async mergeCustomElementsJson(elements: ElementsWithContext[]) {
         // make uris unique
-        elements = elements.filter((value, index, self) => self.findIndex((a) => 
-            a.uri.toString() === value.uri.toString()
+
+        let elementsWithStats = await Promise.all(elements.map(e => limited(async () => {
+            let stats;
+            try {
+                stats = await workspace.fs.stat(e.uri);
+            } catch(e) {
+                stats = undefined;
+            }
+            return {
+                ...e,
+                stats
+            } as ElementsWithContextAndStats
+        })));
+        elementsWithStats = elementsWithStats.filter(el => el.stats);
+        elementsWithStats = elementsWithStats.filter((el, index, self) => self.findIndex((a) => 
+            a.uri.toString() === el.uri.toString() || isSameFile(a.stats, el.stats)
         ) === index)
+
+        // combined final schema
+        const allData = {};
 
         // parse files
         try {
-            this.customElementFiles = await Promise.all(elements.map((element) => limited(async () => {
+            this.customElements = await Promise.all(elementsWithStats.map((element) => limited(async () => {
                 try {
                     // parse files
-                    const json = JSON.parse((await workspace.openTextDocument(element.uri)).getText());
+                    const json = JSON.parse((await workspace.fs.readFile(element.uri)).toString());
                     // transform files to vscode format if needed
                     const data = transform(json, element.uri.toString());
                     // validate
                     const { valid, errors } = validate(data, this.schema);
+                    // aggregate data
+                    if(data && valid) {
+                        mergeWith(allData, data, function (objValue: unknown, srcValue: unknown) {
+                            if (Array.isArray(objValue)) {
+                                return objValue.concat(srcValue);
+                            }
+                        });
+                    }
                     // carry over last collapsibleState state
-                    const collapsed = this.customElementFiles.find(n => n.resourceUri === element.uri)?.collapsibleState || TreeItemCollapsibleState.Collapsed;
+                    const collapsed = this.customElements.find(n => n.resourceUri === element.uri)?.collapsibleState || TreeItemCollapsibleState.Collapsed;
                     const node = new CustomHTMLDataNode(element, valid ? data : undefined, errors.map(e => e.toString()), collapsed);
                     return node;
                 } catch (e: any) {
@@ -85,32 +113,21 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
             })));
 
         } catch (e: any) {
-            this.customElementFiles = [
+            this.customElements = [
                 new TreeItem(`${e && e.toString ? e.toString() : 'unknown'}`)
             ]
             return;
         }
 
-        // combined doc
-        const data = {};
-
-        // aggregate data
-        (this.customElementFiles as CustomHTMLDataNode[]).forEach((node: CustomHTMLDataNode) => {
-            node.data && mergeWith(data, node.data, function (objValue: unknown, srcValue: unknown) {
-                if (Array.isArray(objValue)) {
-                    return objValue.concat(srcValue);
-                }
-            });
-        });
-
-        this.data = data;
+        // implicitly signals update
+        this.data = allData;
     }
 
      /**
      * getter and setter that will signal provider update
      */
     get scanning() {
-        return this._scanning;
+        return !!this._scanning;
     }
 
     set scanning(scanning: boolean) {
@@ -123,7 +140,7 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
     /**
      * getter and setter that will signal provider update
      */
-     get customElementFiles() {
+     get customElements() {
         return [
             ...( this._scanning ? [
                 (()  => {
@@ -131,12 +148,12 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
                     return icon;
                 })()
             ] : []),
-            ...this._customElementFiles
+            ...this._customElements
         ]
     }
 
-    set customElementFiles(items: TreeItem[]) {
-        this._customElementFiles = items;
+    set customElements(items: TreeItem[]) {
+        this._customElements = items;
         // signal data has changed to tree view
         this.onDidChangeTreeDataEmitter.fire(undefined)
     }
@@ -181,9 +198,13 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
         }
 
         if (!element) {
-            return Promise.resolve(this.customElementFiles);
+            if(this.scanning === undefined) {
+                // not initialized!
+                return Promise.resolve(undefined);
+            }
+            return Promise.resolve(this.customElements);
         } else if (element instanceof CustomHTMLDataNode) {
-            return Promise.resolve(element.tags);
+            return Promise.resolve(element.children);
         } else {
             return Promise.resolve(undefined);
         }
@@ -192,12 +213,13 @@ export class CustomDataProvider implements TextDocumentContentProvider, TreeData
 
 
 export class CustomHTMLDataNode extends TreeItem {
-
+    children:TreeItem[] | undefined;
+    
     constructor(
-        public element: ElementsWithContext,
-        public data: VSCodeData | undefined,
-        public errors: string[],
-        public readonly collapsibleState: TreeItemCollapsibleState
+        element: ElementsWithContext,
+        data: VSCodeData | undefined,
+        errors: string[],
+        collapsibleState: TreeItemCollapsibleState
     ) {
         super(basename(element.uri.path), data && data.tags ? collapsibleState : TreeItemCollapsibleState.None);
         this.iconPath = ThemeIcon.File;
@@ -206,18 +228,20 @@ export class CustomHTMLDataNode extends TreeItem {
         this.tooltip = element.uri.path;
         this.description = element.provider ? basename(element.provider) : '';
         this.contextValue = 'file';
-    }
-    
-    get tags() {
-        if(this.errors.length > 0) {
-            return this.errors.map(e => new TreeItem(e));
+
+        if(errors.length > 0) {
+            this.children = errors.map(e => new TreeItem(e));
+        } else {
+            this.children = data ? (data as VSCodeData).tags.map(tag => {
+                const item = new TreeItem(tag.name);
+                item.description = 'tag'
+                item.label = tag.name;
+                item.resourceUri = Uri.parse('tag.html');
+                item.tooltip = new MarkdownString(tag.description);
+                return item;
+            }) : undefined
         }
-        return this.data ? (this.data as VSCodeData).tags.map(tag => {
-            const item = new TreeItem(tag.name);
-            item.description = 'tag'
-            item.label = tag.name;
-            item.resourceUri = Uri.parse('fake/tag.html')
-            return item;
-        }) : undefined
     }
 }
+
+
