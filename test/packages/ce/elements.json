@@ -2,22 +2,22 @@
     "version": 1.1,
     "tags": [
       {
-        "name": "my-other-element",
-        "description": "el-element description",
+        "name": "my-custom-element",
+        "description": "Custom Element description in `markdown`.\n\nThis Definition was automatically\n\ndiscovered by the `Custom Element Scanner` extension",
         "references": [
           {
-            "name": "WebComponents.org",
-            "url": "https://www.webcomponents.org"
+            "name": "github.com/sijakret/custom-element-scanner",
+            "url": "https://github.com/sijakret/custom-element-scanner"
           }
         ],
         "attributes": [
           {
-            "name": "nested",
-            "description": "nested attribute",
-            "type": "Boolean"
+            "name": "my-attribute",
+            "description": "my awesome attribute",
+            "type": "string"
           },
           {
-            "name": "attribute",
+            "name": "enum-attribute",
             "description": "Type of the component. Can be either `text` or `color`.\nIf type is `color`, it needs to have a `color` attribute as well.",
             "values": [
               {
