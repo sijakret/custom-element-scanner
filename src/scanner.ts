@@ -23,6 +23,7 @@ export interface ElementsWithContext {
 export interface IScanner {
   onDidDataChange: EventEmitter<ElementsWithContext[]>;
   onDidStartScan: EventEmitter<void>;
+  onSubscribed?: () => void;
   refresh: () => void;
 }
 
@@ -141,7 +142,7 @@ export function createScanner(): IScanner {
       pkgScanner.refresh();
       elementsScanner.refresh();
     },
-  };
+  } as IScanner;
 
   const store = (force = false) => {
     if (force || getConfiguration().get(CFG_MODE) === CFG_MODE_MANUAL) {
@@ -180,7 +181,7 @@ export function createScanner(): IScanner {
       pkgScanner.config.mode === CFG_MODE_MANUAL
     ) {
       load();
-      update();
+      update(false);
     }
   });
 
@@ -195,8 +196,8 @@ export function createScanner(): IScanner {
 
   // emit merged customElement files discovered via filesystem directly
   // and via customElements fields in package.json files
-  const update = async () => {
-    store();
+  const update = async (updateConfig = true) => {
+    updateConfig && store();
     scanner.onDidDataChange.fire([...pkgPaths, ...elemPaths]);
   };
 
@@ -208,17 +209,12 @@ export function createScanner(): IScanner {
       // dispose old stuff
       dispose();
       scanner.onDidStartScan.fire();
-      console.log(elements.map((e) => e.uri.toString()));
       // at this point we have all package.json files that were
       // discovered by the vscode apis via findFiles/watch
       // map package.json files to custom-elements fields
       pkgPaths = await collectCustomElementJsons(
         elements.map((e) => e.uri),
         options
-      );
-      console.log(
-        "pkgPaths",
-        pkgPaths.map((e) => e.uri.toString())
       );
       // watch all the custom elements files explicitly
       if (!options.cancelled) {
@@ -247,11 +243,14 @@ export function createScanner(): IScanner {
   });
   elementsScanner.onDidStartScan.event(() => scanner.onDidStartScan.fire());
   if (elemPaths.length) {
-    // wait until provider has hopefully subscribed
-    // and fire initial data
-    setTimeout(() => {
-      update();
-    }, 1000);
+    // will be called by scanner first thing
+    scanner.onSubscribed = () => {
+      update(false);
+    };
+  }
+  // initial refresh in auto mode
+  if (getConfiguration().get(CFG_MODE) === CFG_MODE_AUTO) {
+    scanner.refresh();
   }
   return scanner;
 }

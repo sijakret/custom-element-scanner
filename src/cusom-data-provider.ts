@@ -63,6 +63,7 @@ export class CustomDataProvider
     );
     this._scanner.onDidStartScan.event(() => (this.scanning = true));
     this.uri = Uri.parse(`${this.scheme}:/${VIRTUAL_FILENAME}`);
+    this._scanner.onSubscribed && this._scanner.onSubscribed();
   }
 
   /**
@@ -142,7 +143,7 @@ export class CustomDataProvider
               // carry over last collapsibleState state
               const collapsed =
                 this.customElements.find((n) => n.resourceUri === element.uri)
-                  ?.collapsibleState || TreeItemCollapsibleState.Collapsed;
+                  ?.collapsibleState || TreeItemCollapsibleState.Expanded;
               const node = new CustomHTMLDataNode(
                 element,
                 valid ? data : undefined,
@@ -156,7 +157,7 @@ export class CustomDataProvider
                 element,
                 undefined,
                 e && e.toString ? [`${e.toString()}`] : ["Error: unknown"],
-                TreeItemCollapsibleState.Collapsed
+                TreeItemCollapsibleState.Expanded
               );
             }
           })
