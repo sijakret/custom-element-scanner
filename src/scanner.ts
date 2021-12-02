@@ -14,7 +14,12 @@ import {
   affectsConfiguration,
   CFG_MODE_MANUAL,
 } from "./config";
-import { normalizePath, normalizeUri } from "./utils";
+import {
+  normalizePath,
+  normalizeUri,
+  relativeWorkspacePath,
+  workspacePathToPath,
+} from "./utils";
 
 export interface ElementsWithContext {
   uri: Uri;
@@ -28,13 +33,13 @@ export interface IScanner {
 }
 
 function serializeElementsWithContext(e: ElementsWithContext): string {
-  return `${e.provider || ""}:/${e.uri.toString()}`;
+  return `${e.provider || ""}:/${relativeWorkspacePath(e.uri.toString())}`;
 }
 function deserializeElementsWithContext(e: string): ElementsWithContext {
   const split = e.split(":/");
   return {
     provider: split[0] || undefined,
-    uri: Uri.parse(split.slice(1).join(":/")),
+    uri: Uri.parse(workspacePathToPath(split.slice(1).join(":/"))),
   };
 }
 

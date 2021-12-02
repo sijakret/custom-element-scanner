@@ -1,6 +1,6 @@
 import { FileStat, FileType, Uri, workspace } from "vscode";
 import { webMode } from "./config";
-import { relative } from "path";
+import { relative, sep } from "path";
 
 export function isSameFile(a?: FileStat, b?: FileStat) {
   if (webMode()) {
@@ -47,4 +47,25 @@ export function normalizePath(path: string) {
 
 export function normalizeUri(uri: Uri) {
   return Uri.parse(normalizePath(uri.toString()));
+}
+
+function workspacePath() {
+  if (!workspace.workspaceFolders) {
+    return "";
+  }
+  return workspace.workspaceFolders[0].uri.toString();
+}
+
+export function relativeWorkspacePath(path: string) {
+  const w = workspacePath();
+  if (path.startsWith(w)) {
+    return path.substring(w.length);
+  }
+  return path;
+}
+
+export function workspacePathToPath(path: string) {
+  const w = workspacePath();
+  const segments = w.split(sep);
+  return [...segments, path].join(sep);
 }
