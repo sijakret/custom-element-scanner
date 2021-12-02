@@ -13,9 +13,8 @@
 			"stopOnEntry": false,
 			"sourceMaps": true,
 			"outFiles": [
-				"${workspaceRoot}/out/src/**/*.js"
-			],
-			"preLaunchTask": "npm: watch"
+				"${workspaceRoot}/dist/node/**/*.js"
+			]
 		}
 	]
 }

@@ -179,10 +179,11 @@
 		"compile:node": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/node/extension.js --sourcemap",
 		"compile:web": "webpack --config webpack.config.js",
 		"open-web": "npx vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --folder-uri=\"/Users/sijakret/Code/vscode-custom-data-loader\"",
+		"open-insiders": "\"/Users/sijakret/Downloads/Visual Studio Code - Insiders.app\" --extensionDevelopmentPath=.",
 		"compile-in-place": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=/Users/sijakret/.vscode-oss-dev/extensions/jan-kretschmer.custom-element-scanner-0.0.1/dist/node/extension.js --sourcemap",
 		"watch-in-place": "npm run compile-in-place -- --watch",
 		"lint": "eslint . --ext .ts,.tsx",
-		"watch": "tsc --watch",
+		"watch": "npm run compile:node -- --watch",
 		"package": "npx vsce package"
 	},
 	"dependencies": {

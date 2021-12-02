@@ -10,8 +10,6 @@ const scheme = configKey;
 export function activate(context: ExtensionContext) {
   const { subscriptions } = context;
 
-  setWebMode(true);
-
   setupContext(context);
 
   // scanner fires onDidDataChange with list of custom-element.json uris
