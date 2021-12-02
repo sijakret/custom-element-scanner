@@ -2,7 +2,7 @@
 	"name": "custom-element-scanner",
 	"displayName": "Custom Element Scanner (alpha)",
 	"description": "Scans for custom elements files in your project and makes them available to hmlt language service",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"type": "commonjs",
 	"publisher": "Jan-Kretschmer",
 	"repository": {
@@ -37,7 +37,7 @@
 				{
 					"id": "customElementScanner",
 					"title": "Custom Element Scanner",
-					"icon": "assets/container-logo.svg"
+					"icon": "assets/container-logo2.svg"
 				}
 			]
 		},
