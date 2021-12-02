@@ -2,7 +2,7 @@
 	"name": "custom-element-scanner",
 	"displayName": "Custom Element Scanner (alpha)",
 	"description": "Scans for custom elements files in your project and makes them available to hmlt language service",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"type": "commonjs",
 	"publisher": "Jan-Kretschmer",
 	"repository": {
@@ -176,7 +176,7 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "yarn compile:node&&yarn compile:web",
-		"compile:node": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/node/extension.js --sourcemap",
+		"compile:node": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/node/extension.js --sourcemap --define:WEB_MODE=false",
 		"compile:web": "webpack --config webpack.config.js",
 		"open-web": "npx vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --folder-uri=\"/Users/sijakret/Code/vscode-custom-data-loader\"",
 		"open-insiders": "\"/Users/sijakret/Downloads/Visual Studio Code - Insiders.app\" --extensionDevelopmentPath=.",

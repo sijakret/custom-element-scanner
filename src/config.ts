@@ -6,7 +6,8 @@ import {
 } from "vscode";
 import pLimit, { LimitFunction } from "p-limit";
 
-let _webMode = false;
+// @ts-ignore: Unreachable code error
+let _webMode = WEB_MODE;
 
 export function webMode() {
   return _webMode;
