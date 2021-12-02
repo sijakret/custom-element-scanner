@@ -1,4 +1,4 @@
-import * as schema from "custom-elements-manifest/schema";
+import * as schema from "custom-elements-manifest/schema.json";
 import { Package, CustomElement } from "custom-elements-manifest/schema";
 import { validate } from "jsonschema";
 
@@ -7,7 +7,7 @@ const supportedVersions = ["1.0.0"];
  * transform this: https://github.com/webcomponents/custom-elements-manifest
  * to this: https://github.com/microsoft/vscode-custom-data/tree/main/samples/webcomponents
  */
-export function transform(json: any, path: string): any {
+export function transform(json: any): any {
   const { valid: isManifest } = validate(json, schema);
   if (
     isManifest &&

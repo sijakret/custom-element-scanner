@@ -1,8 +1,8 @@
 {
 	"name": "custom-element-scanner",
-	"displayName": "Custom Element Scanner",
+	"displayName": "Custom Element Scanner (alpha)",
 	"description": "Scans for custom elements files in your project and makes them available to hmlt language service",
-	"version": "0.0.1-beta",
+	"version": "0.0.2",
 	"type": "commonjs",
 	"publisher": "Jan-Kretschmer",
 	"repository": {
@@ -13,7 +13,7 @@
 		"url": "https://github.com/sijakret/custom-element-scanner/issues"
 	},
 	"engines": {
-		"vscode": "^1.62.0"
+		"vscode": "^1.63.0"
 	},
 	"categories": [
 		"Other"
@@ -23,7 +23,8 @@
 		"onCommand:cds.workspaceInit",
 		"onView:customElementScanner"
 	],
-	"main": "./out/extension.js",
+	"main": "./dist/node/extension.js",
+	"browser": "./dist/web/extension.js",
 	"icon": "assets/logo6.png",
 	"contributes": {
 		"html": {
@@ -33,11 +34,11 @@
 		},
 		"viewsContainers": {
 			"activitybar": [
-			  {
-				"id": "customElementScanner",
-				"title": "Custom Element Scanner",
-				"icon": "assets/container-logo.svg"
-			  }
+				{
+					"id": "customElementScanner",
+					"title": "Custom Element Scanner",
+					"icon": "assets/container-logo.svg"
+				}
 			]
 		},
 		"views": {
@@ -174,8 +175,11 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
-		"compile": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --sourcemap",
-		"compile-in-place": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=/Users/sijakret/.vscode-oss-dev/extensions/jan-kretschmer.custom-element-scanner-0.0.1/out/extension.js --sourcemap",
+		"compile": "yarn compile:node&&yarn compile:web",
+		"compile:node": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/node/extension.js --sourcemap",
+		"compile:web": "webpack --config webpack.config.js",
+		"open-web": "npx vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --folder-uri=\"/Users/sijakret/Code/vscode-custom-data-loader\"",
+		"compile-in-place": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=/Users/sijakret/.vscode-oss-dev/extensions/jan-kretschmer.custom-element-scanner-0.0.1/dist/node/extension.js --sourcemap",
 		"watch-in-place": "npm run compile-in-place -- --watch",
 		"lint": "eslint . --ext .ts,.tsx",
 		"watch": "tsc --watch",
@@ -192,10 +196,14 @@
 		"@types/vscode": "^1.62.0",
 		"@typescript-eslint/eslint-plugin": "^4.16.0",
 		"@typescript-eslint/parser": "^4.16.0",
+		"@vscode/test-web": "^0.0.15",
 		"esbuild": "^0.13.12",
 		"eslint": "^7.21.0",
+		"path-browserify": "^1.0.1",
+		"process": "^0.11.10",
 		"ts-loader": "^9.2.5",
 		"typescript": "^4.2.2",
+		"url": "^0.11.0",
 		"vsce": "^2.2.0",
 		"webpack": "^5.52.1",
 		"webpack-cli": "^4.8.0"

@@ -1,8 +1,8 @@
 import { GlobPattern, Uri, workspace } from "vscode";
-import { dirname, join } from "path";
+import { dirname, join, sep } from "path";
 import { limited } from "./config";
 import { ElementsWithContext } from "./scanner";
-import { isSameFile } from "./utils";
+import { fsStat, isSameFile, normalizePath } from "./utils";
 
 export interface CollectOptions {
   levelsToDescend?: number;
@@ -93,7 +93,13 @@ export async function collectCustomElementJsons(
   // make list of package.jsons unique
   let pkgList = pkgs.flat();
   const stats = await Promise.all(
-    pkgList.map((p) => workspace.fs.stat(Uri.parse(p)))
+    pkgList.map((p) => {
+      try {
+        return fsStat(Uri.parse(p));
+      } catch (_e) {
+        return undefined;
+      }
+    })
   );
   pkgList = pkgList.filter(
     (v, i, a) =>
@@ -103,23 +109,41 @@ export async function collectCustomElementJsons(
   );
 
   const fields = await Promise.all(
-    pkgList.map((pkg) =>
-      limited(async () => {
+    pkgList.map((pkg) => {
+      pkg = normalizePath(pkg);
+      return limited(async () => {
         if (options.cancelled) {
           return undefined;
         }
+        let file: string | undefined = undefined;
         try {
-          const file = await workspace.fs.readFile(Uri.parse(pkg));
-          const json = JSON.parse(file.toString());
-          return {
-            provider: json.name ? json.name.split("/").join(" ") : undefined,
-            uri: Uri.parse(join(dirname(pkg), json.customElements)),
-          };
+          const bytes = await workspace.fs.readFile(Uri.parse(pkg));
+          file = new TextDecoder("utf-8").decode(bytes);
         } catch (e) {
+          console.error(e);
+        }
+        try {
+          if (file) {
+            const json = JSON.parse(file);
+            if (!json.customElements) {
+              return undefined;
+            }
+            const dir = pkg.split(sep);
+            dir.pop();
+            return {
+              provider: json.name ? json.name.split("/").join(" ") : undefined,
+              uri: Uri.parse([...dir, json.customElements].join(sep)),
+            };
+          } else {
+            console.error("could not load", pkg);
+          }
+          return undefined;
+        } catch (e) {
+          console.error(e);
           return undefined;
         }
-      })
-    )
+      });
+    })
   );
   return fields.filter((f) => !!f);
 }

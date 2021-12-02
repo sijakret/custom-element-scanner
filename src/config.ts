@@ -6,6 +6,15 @@ import {
 } from "vscode";
 import pLimit, { LimitFunction } from "p-limit";
 
+let _webMode = false;
+
+export function webMode() {
+  return _webMode;
+}
+export function setWebMode(on: boolean) {
+  _webMode = on;
+}
+
 //
 export const configKey = "customElementScanner";
 

@@ -2,13 +2,15 @@ import { ExtensionContext, workspace, window, commands } from "vscode";
 import { CustomDataProvider, CustomHTMLDataNode } from "./cusom-data-provider";
 import htmlSchema from "./html.schema";
 import { createScanner } from "./scanner";
-import { setupContext, configKey } from "./config";
+import { setupContext, configKey, setWebMode } from "./config";
 
 // virtual scheme that will map to dynamically aggregated custom-elements.json
 const scheme = configKey;
 
 export function activate(context: ExtensionContext) {
   const { subscriptions } = context;
+
+  setWebMode(true);
 
   setupContext(context);
 
@@ -34,8 +36,10 @@ export function activate(context: ExtensionContext) {
     commands.registerCommand(
       `${configKey}.open`,
       async (item: CustomHTMLDataNode) => {
-        const doc = await workspace.openTextDocument(item.element.uri);
-        window.showTextDocument(doc);
+        if (item.resourceUri) {
+          const doc = await workspace.openTextDocument(item.resourceUri);
+          window.showTextDocument(doc);
+        }
       }
     )
   );

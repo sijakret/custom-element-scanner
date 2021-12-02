@@ -1,6 +1,6 @@
 .vscode/**
 typings/**
-out/test/**
+dist/test/**
 test/**
 src/**
 .gitignore

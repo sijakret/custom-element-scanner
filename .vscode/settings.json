@@ -9,16 +9,5 @@
 	"editor.formatOnSave": true,
 	"typescript.tsdk": "./node_modules/typescript/lib", // we want to use the TS server from our node_modules folder to control its version
 	"typescript.tsc.autoDetect": "off",
-	"customElementScanner.mode": "auto",
-	"customElementScanner.paths": [
-		"@my-org my-package:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/packages/ce/elements.json",
-		"@spectrum-web-components base:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40spectrum-web-components/base/custom-elements.json",
-		"@spectrum-web-components icon:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40spectrum-web-components/icon/custom-elements.json",
-		"@spectrum-web-components iconset:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40spectrum-web-components/iconset/custom-elements.json",
-		"@spectrum-web-components button:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40spectrum-web-components/button/custom-elements.json",
-		"@spectrum-web-components icons-ui:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40spectrum-web-components/icons-ui/custom-elements.json",
-		"@spectrum-web-components shared:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40spectrum-web-components/shared/custom-elements.json",
-		"custom-element-scanner:/file:///Users/sijakret/Code/vscode-custom-data-loader/custom-elements.json",
-		"@my-org my-package:/file:///Users/sijakret/Code/vscode-custom-data-loader/test/workspace/node_modules/%40ce/ce/elements.json"
-	]
+	"customElementScanner.mode": "auto"
 }

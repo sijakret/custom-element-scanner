@@ -14,6 +14,7 @@ import {
   affectsConfiguration,
   CFG_MODE_MANUAL,
 } from "./config";
+import { normalizePath, normalizeUri } from "./utils";
 
 export interface ElementsWithContext {
   uri: Uri;
@@ -92,15 +93,15 @@ class Scanner implements IScanner {
         `${this.config.include}`,
         `${this.config.exclude}`
       )
-    ).map((uri) => ({ uri }));
+    ).map((uri) => ({ uri: normalizeUri(uri) }));
     this._watcher = workspace.createFileSystemWatcher(`${this.config.include}`);
     this._watcher.onDidChange(() => this.update());
     this._watcher.onDidCreate((uri: Uri) => {
-      this.uris.push({ uri });
+      this.uris.push({ uri: normalizeUri(uri) });
       this.update();
     });
     this._watcher.onDidDelete((e: Uri) => {
-      const str = e.toString();
+      const str = normalizePath(e.toString());
       this.uris = this.uris.filter((u) => u.toString() !== str);
       this.update();
     });
@@ -207,12 +208,17 @@ export function createScanner(): IScanner {
       // dispose old stuff
       dispose();
       scanner.onDidStartScan.fire();
+      console.log(elements.map((e) => e.uri.toString()));
       // at this point we have all package.json files that were
       // discovered by the vscode apis via findFiles/watch
       // map package.json files to custom-elements fields
       pkgPaths = await collectCustomElementJsons(
         elements.map((e) => e.uri),
         options
+      );
+      console.log(
+        "pkgPaths",
+        pkgPaths.map((e) => e.uri.toString())
       );
       // watch all the custom elements files explicitly
       if (!options.cancelled) {

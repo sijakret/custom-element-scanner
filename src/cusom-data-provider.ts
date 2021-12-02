@@ -17,10 +17,12 @@ import { transform } from "./schema-transform";
 import mergeWith from "lodash.mergewith";
 import { basename } from "path";
 import { limited } from "./config";
-import { isSameFile } from "./utils";
+import { fsStat, isSameFile } from "./utils";
 
 // name of virtual file doesn't really matter
 const VIRTUAL_FILENAME = "data.json";
+
+const decoder = new TextDecoder("utf-8");
 
 interface VSCodeData {
   tags: {
@@ -42,7 +44,7 @@ export class CustomDataProvider
   // emitter and its event
   onDidChangeEmitter = new EventEmitter<Uri>();
   onDidChange = this.onDidChangeEmitter.event;
-  onDidChangeTreeDataEmitter = new EventEmitter<TreeItem>();
+  onDidChangeTreeDataEmitter = new EventEmitter<TreeItem | undefined>();
   onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
   // stores combined data
@@ -88,7 +90,7 @@ export class CustomDataProvider
         limited(async () => {
           let stats;
           try {
-            stats = await workspace.fs.stat(e.uri);
+            stats = await fsStat(e.uri);
           } catch (e) {
             stats = undefined;
           }
@@ -119,11 +121,10 @@ export class CustomDataProvider
           limited(async () => {
             try {
               // parse files
-              const json = JSON.parse(
-                (await workspace.fs.readFile(element.uri)).toString()
-              );
+              const bytes = await workspace.fs.readFile(element.uri);
+              const json = JSON.parse(decoder.decode(bytes));
               // transform files to vscode format if needed
-              const data = transform(json, element.uri.toString());
+              const data = transform(json);
               // validate
               const { valid, errors } = validate(data, this.schema);
               // aggregate data
